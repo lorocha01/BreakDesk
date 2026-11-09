@@ -61,6 +61,9 @@ export const webPlatform: Platform = {
     return signEd25519(secret!, message);
   },
   verify: verifyEd25519,
+  async discoverServers() {
+    return [] as string[];
+  },
   async deviceInfo() {
     return { hostname: 'Navegador', os: detectOs(), appVersion: __APP_VERSION__ };
   },

@@ -192,6 +192,68 @@ fn device_info() -> serde_json::Value {
     json!({"hostname": nexo_core::hostname(), "os": nexo_core::os_name(), "appVersion": nexo_core::APP_VERSION})
 }
 
+/// Procura servidores Nexo na rede local: broadcast UDP "NEXO_DISCOVER_V1" na porta 41234
+/// (limitado + direcionado por interface + loopback) e coleta as respostas unicast.
+#[tauri::command]
+async fn discover_servers(timeout_ms: Option<u64>) -> CmdResult<Vec<String>> {
+    let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(1500).clamp(300, 5000));
+    tokio::task::spawn_blocking(move || discover_blocking(timeout))
+        .await
+        .map_err(err)?
+        .map_err(err)
+}
+
+fn discover_blocking(timeout: std::time::Duration) -> anyhow::Result<Vec<String>> {
+    use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
+    const PORT: u16 = 41234;
+    let sock = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))?;
+    sock.set_broadcast(true)?;
+    let probe = b"NEXO_DISCOVER_V1";
+    let mut targets: Vec<Ipv4Addr> = vec![Ipv4Addr::LOCALHOST, Ipv4Addr::BROADCAST];
+    if let Ok(ifaces) = if_addrs::get_if_addrs() {
+        for i in ifaces {
+            if let if_addrs::IfAddr::V4(v4) = i.addr {
+                if v4.ip.is_loopback() {
+                    continue;
+                }
+                let b = v4
+                    .broadcast
+                    .unwrap_or_else(|| Ipv4Addr::from(u32::from(v4.ip) | !u32::from(v4.netmask)));
+                if !targets.contains(&b) {
+                    targets.push(b);
+                }
+            }
+        }
+    }
+    for t in &targets {
+        let _ = sock.send_to(probe, SocketAddrV4::new(*t, PORT));
+    }
+    let deadline = std::time::Instant::now() + timeout;
+    let mut found: Vec<String> = Vec::new();
+    let mut buf = [0u8; 512];
+    loop {
+        let left = deadline.saturating_duration_since(std::time::Instant::now());
+        if left.is_zero() {
+            break;
+        }
+        sock.set_read_timeout(Some(left))?;
+        let Ok((n, from)) = sock.recv_from(&mut buf) else { break };
+        let Ok(v) = serde_json::from_slice::<serde_json::Value>(&buf[..n]) else { continue };
+        if v.get("nexo").and_then(|x| x.as_u64()) != Some(1) {
+            continue;
+        }
+        let Some(port) = v.get("port").and_then(|x| x.as_u64()) else { continue };
+        let host = if from.ip().is_loopback() { "localhost".to_string() } else { from.ip().to_string() };
+        let url = format!("http://{host}:{port}");
+        if !found.contains(&url) {
+            found.push(url);
+        }
+    }
+    // Mesmo computador primeiro.
+    found.sort_by_key(|u| !u.starts_with("http://localhost"));
+    Ok(found)
+}
+
 #[tauri::command]
 async fn monitors_list() -> CmdResult<Vec<MonitorInfo>> {
     tokio::task::spawn_blocking(nexo_core::capture::list_monitors)
@@ -633,6 +695,7 @@ pub fn run() {
             dl_write,
             dl_close,
             dl_abort,
+            discover_servers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Nexo");

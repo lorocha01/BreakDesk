@@ -153,6 +153,7 @@ function GeneralSection({ settings, update }: { settings: Settings; update: (p: 
   const [name, setName] = useState(settings.deviceName);
   const [server, setServer] = useState(settings.serverUrl);
   const [autostart, setAutostart] = useState(settings.launchOnStartup);
+  const [searching, setSearching] = useState(false);
   useEffect(() => setServer(settings.serverUrl), [settings.serverUrl]);
   useEffect(() => {
     if (platform.canHost) platform.getAutostart().then(setAutostart).catch(() => {});
@@ -199,6 +200,24 @@ function GeneralSection({ settings, update }: { settings: Settings; update: (p: 
           >
             {t.settings.apply}
           </button>
+          {platform.canHost && (
+            <button
+              className="btn btn-secondary"
+              disabled={searching}
+              onClick={async () => {
+                setSearching(true);
+                const found = await controller.discover();
+                setSearching(false);
+                if (!found.length) return toast('warning', t.settings.discoverNone);
+                setServer(found[0]);
+                update({ serverUrl: found[0] });
+                toast('success', t.status.serverFound, found[0]);
+              }}
+              data-testid="setting-server-discover"
+            >
+              {searching ? t.settings.discovering : t.settings.discover}
+            </button>
+          )}
         </div>
       </Row>
       <Row title={t.settings.theme}>

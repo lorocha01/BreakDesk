@@ -115,10 +115,38 @@ class Controller {
       this.registerBackoff = 2000;
       this.sig.start();
     } catch (e) {
-      const msg = e instanceof ApiError && e.status === 0 ? t.status.serverUnreachable : (e as Error).message;
+      const unreachable = e instanceof ApiError && e.status === 0;
+      const msg = unreachable ? t.status.serverUnreachable : (e as Error).message;
       setApp({ conn: 'offline', serverError: msg });
+      // Servidor local/LAN fora do ar: procura um servidor Nexo na rede e passa a usá-lo sozinho.
+      if (unreachable && (await this.autoDiscover())) return;
       this.registerTimer = setTimeout(() => void this.registerLoop(), this.registerBackoff);
       this.registerBackoff = Math.min(this.registerBackoff * 2, 30_000);
+    }
+  }
+
+  private lastDiscovery = 0;
+
+  /** Procura servidores na rede local. Só troca automaticamente se o atual for http:// (LAN/teste). */
+  private async autoDiscover(): Promise<boolean> {
+    const current = getApp().settings.serverUrl;
+    if (!platform.canHost || !current.startsWith('http://')) return false;
+    if (Date.now() - this.lastDiscovery < 8000) return false;
+    this.lastDiscovery = Date.now();
+    const found = await this.discover();
+    const next = found.find((u) => u !== current);
+    if (!next || found.includes(current)) return false;
+    notify('success', t.status.serverFound, next);
+    await this.updateSettings({ serverUrl: next });
+    return true;
+  }
+
+  async discover(): Promise<string[]> {
+    try {
+      return await platform.discoverServers(1500);
+    } catch (e) {
+      console.warn('[discovery]', e);
+      return [];
     }
   }
 

@@ -58,6 +58,8 @@ export interface Platform {
   sign(message: string): Promise<string>;
   verify(publicKey: string, message: string, signature: string): Promise<boolean>;
   deviceInfo(): Promise<DeviceInfo>;
+  /** Procura servidores Nexo na rede local (apenas desktop; web devolve []). */
+  discoverServers(timeoutMs?: number): Promise<string[]>;
   loadSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<void>;
   setUnattendedPassword(password: string): Promise<void>;

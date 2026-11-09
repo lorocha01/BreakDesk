@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createDb } from './db.js';
+import { startDiscovery } from './discovery.js';
 import { migrate } from './migrate.js';
 
 const cfg = loadConfig();
@@ -11,6 +12,7 @@ if (process.env.MIGRATE_ON_START === 'true') {
 }
 const { app } = await buildApp(cfg, db);
 await app.listen({ port: cfg.port, host: cfg.host });
+startDiscovery(cfg.port);
 
 let stopping = false;
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
