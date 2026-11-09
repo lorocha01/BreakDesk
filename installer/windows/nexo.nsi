@@ -113,6 +113,7 @@ Section /o "Servidor Nexo (apenas 1 computador da rede)" SecServer
   DetailPrint "Liberando o servidor no Firewall do Windows..."
   !insertmacro FirewallRule "Nexo Servidor" "$INSTDIR\Servidor\node\node.exe"
   CreateShortcut "$SMPROGRAMS\Nexo\Servidor Nexo.lnk" "$INSTDIR\Servidor\Iniciar servidor Nexo.bat" "" "$INSTDIR\nexo.ico"
+  CreateShortcut "$SMPROGRAMS\Nexo\Configurar acesso pela internet.lnk" "$INSTDIR\Servidor\Configurar acesso pela internet.bat" "" "$INSTDIR\nexo.ico"
   CreateShortcut "$DESKTOP\Servidor Nexo.lnk" "$INSTDIR\Servidor\Iniciar servidor Nexo.bat" "" "$INSTDIR\nexo.ico"
   ; O servidor precisa estar sempre disponível: abre minimizado quando o Windows inicia.
   CreateShortcut "$SMSTARTUP\Servidor Nexo.lnk" "$INSTDIR\Servidor\Iniciar servidor Nexo.bat" "" "$INSTDIR\nexo.ico" 0 SW_SHOWMINIMIZED

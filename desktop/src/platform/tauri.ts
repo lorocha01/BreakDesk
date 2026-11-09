@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { defaultSettings, type LocalAuditRow, type Monitor, type Settings } from '../net/protocol';
-import type { DeviceInfo, DownloadSink, HostApi, Identity, Platform } from './types';
+import type { DeviceInfo, DownloadSink, HostApi, Identity, Platform, DiscoveredServer } from './types';
 
 let identityCache: Identity | null = null;
 
@@ -41,7 +41,7 @@ export const tauriPlatform: Platform = {
   sign: (message) => invoke<string>('identity_sign', { message }),
   verify: (publicKey, message, signature) => invoke<boolean>('identity_verify', { publicKey, message, signature }),
   deviceInfo: () => invoke<DeviceInfo>('device_info'),
-  discoverServers: (timeoutMs?: number) => invoke<string[]>('discover_servers', { timeoutMs }),
+  discoverServers: (timeoutMs?: number) => invoke<DiscoveredServer[]>('discover_servers', { timeoutMs }),
   log: (level: string, message: string) => void invoke('app_log', { level, message }).catch(() => {}),
   async loadSettings() {
     const s = await invoke<Partial<Settings>>('settings_get');

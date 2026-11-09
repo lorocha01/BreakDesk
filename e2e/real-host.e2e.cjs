@@ -96,7 +96,8 @@ async function runScenario(browser, { name, relayOnly }) {
   // Digita como um teclado físico: caracteres com Shift seguram ShiftLeft de verdade.
   const SHIFTED = { '>': 'Period', '<': 'Comma', '_': 'Minus', ':': 'Semicolon' };
   for (const ch of `echo nexo-${name} > ${marker}`) {
-    if (SHIFTED[ch]) { await page.keyboard.down('Shift'); await page.keyboard.press(SHIFTED[ch]); await page.keyboard.up('Shift'); }
+    const upper = /^[A-Z]$/.test(ch) ? `Key${ch}` : null;
+    if (SHIFTED[ch] || upper) { await page.keyboard.down('Shift'); await page.keyboard.press(SHIFTED[ch] || upper); await page.keyboard.up('Shift'); }
     else await page.keyboard.type(ch);
     await sleep(10);
   }
@@ -156,8 +157,21 @@ async function runScenario(browser, { name, relayOnly }) {
 
   await page.click('[data-testid=nav-history]');
   await page.waitForSelector('[data-testid=sessions-table] tbody tr', { timeout: 10000 });
+  // Espera sair a linha de carregamento (skeleton) da animação de entrada.
+  await page
+    .waitForFunction(
+      (p) => (document.querySelector('[data-testid=sessions-table] tbody tr')?.textContent || '').includes(p),
+      HOST_ID.slice(0, 3),
+      { timeout: 8000 },
+    )
+    .catch(() => {});
   const txt = await page.locator('[data-testid=sessions-table] tbody tr').first().innerText();
-  check(txt.includes(HOST_ID.slice(0, 3)), 'histórico registra a sessão com o host');
+  const okHist = txt.includes(HOST_ID.slice(0, 3));
+  if (!okHist) {
+    log('histórico (1ª linha):', JSON.stringify(txt));
+    await page.screenshot({ path: path.join(OUT, `historico-${name}.png`) });
+  }
+  check(okHist, 'histórico registra a sessão com o host');
   await ctx.close();
 }
 
@@ -165,7 +179,7 @@ async function runScenario(browser, { name, relayOnly }) {
   const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream'] });
   try {
     if (!process.env.ONLY_RELAY) await runScenario(browser, { name: 'p2p', relayOnly: false });
-    await runScenario(browser, { name: 'relay', relayOnly: true });
+    if (!process.env.ONLY_P2P) await runScenario(browser, { name: 'relay', relayOnly: true });
   } catch (e) {
     failures++;
     log('ERRO', e.stack || e.message);

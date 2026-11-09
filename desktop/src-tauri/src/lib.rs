@@ -219,7 +219,7 @@ fn write_log(app: &AppHandle, level: &str, message: &str) {
 /// Procura servidores Nexo na rede local: broadcast UDP "NEXO_DISCOVER_V1" na porta 41234
 /// (limitado + direcionado por interface + loopback) e coleta as respostas unicast.
 #[tauri::command]
-async fn discover_servers(timeout_ms: Option<u64>) -> CmdResult<Vec<String>> {
+async fn discover_servers(timeout_ms: Option<u64>) -> CmdResult<Vec<serde_json::Value>> {
     let timeout = std::time::Duration::from_millis(timeout_ms.unwrap_or(1500).clamp(300, 5000));
     tokio::task::spawn_blocking(move || discover_blocking(timeout))
         .await
@@ -227,7 +227,7 @@ async fn discover_servers(timeout_ms: Option<u64>) -> CmdResult<Vec<String>> {
         .map_err(err)
 }
 
-fn discover_blocking(timeout: std::time::Duration) -> anyhow::Result<Vec<String>> {
+fn discover_blocking(timeout: std::time::Duration) -> anyhow::Result<Vec<serde_json::Value>> {
     use std::net::{Ipv4Addr, SocketAddrV4, UdpSocket};
     const PORT: u16 = 41234;
     let sock = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))?;
@@ -254,7 +254,8 @@ fn discover_blocking(timeout: std::time::Duration) -> anyhow::Result<Vec<String>
     }
     let deadline = std::time::Instant::now() + timeout;
     // (id do servidor, url, é_localhost)
-    let mut found: Vec<(String, String, bool)> = Vec::new();
+    // (id do servidor, url, é_localhost, endereço público)
+    let mut found: Vec<(String, String, bool, Option<String>)> = Vec::new();
     let mut buf = [0u8; 512];
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());
@@ -278,21 +279,27 @@ fn discover_blocking(timeout: std::time::Duration) -> anyhow::Result<Vec<String>
         let local = from.ip().is_loopback();
         let host = if local { "localhost".to_string() } else { from.ip().to_string() };
         let url = format!("http://{host}:{port}");
+        // Só aceita endereço público https:// (anunciado pelo PC servidor com acesso pela internet).
+        let public_url = v
+            .get("publicUrl")
+            .and_then(|x| x.as_str())
+            .filter(|u| u.starts_with("https://") && u.len() < 256)
+            .map(str::to_string);
         if !found.iter().any(|f| f.1 == url) {
-            found.push((id, url, local));
+            found.push((id, url, local, public_url));
         }
     }
     // Ordem canônica: menor id primeiro (todos os computadores escolhem o mesmo servidor);
     // para o mesmo servidor, o endereço localhost vem antes. Um endereço por servidor.
     found.sort_by(|a, b| a.0.cmp(&b.0).then(b.2.cmp(&a.2)));
-    let mut out: Vec<String> = Vec::new();
+    let mut out: Vec<serde_json::Value> = Vec::new();
     let mut seen: Vec<String> = Vec::new();
-    for (id, url, _) in found {
+    for (id, url, _, public_url) in found {
         if !id.is_empty() && seen.contains(&id) {
             continue;
         }
-        seen.push(id);
-        out.push(url);
+        seen.push(id.clone());
+        out.push(json!({"url": url, "id": id, "publicUrl": public_url}));
     }
     Ok(out)
 }

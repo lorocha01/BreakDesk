@@ -223,9 +223,10 @@ function GeneralSection({ settings, update }: { settings: Settings; update: (p: 
                 const found = await controller.discover();
                 setSearching(false);
                 if (!found.length) return toast('warning', t.settings.discoverNone);
-                setServer(found[0]);
-                update({ serverUrl: found[0] });
-                toast('success', t.status.serverFound, found[0]);
+                const chosen = found[0].publicUrl || found[0].url;
+                setServer(chosen);
+                update({ serverUrl: chosen });
+                toast('success', t.status.serverFound, chosen);
               }}
               data-testid="setting-server-discover"
             >

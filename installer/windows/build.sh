@@ -31,7 +31,8 @@ cp "$ROOT/desktop/src-tauri/icons/icon.ico" "$STAGE/nexo.ico"
 echo "[2/4] Servidor (Node portátil + banco embutido)"
 (cd "$ROOT/server" && npm run -s build)
 cp -r "$ROOT/server/dist" "$ROOT/server/migrations" "$ROOT/server/package.json" "$ROOT/server/package-lock.json" "$STAGE/server/"
-cp "$ROOT/server/scripts/windows/iniciar.mjs" "$ROOT/server/scripts/windows/Iniciar servidor Nexo.bat" "$STAGE/server/"
+W="$ROOT/server/scripts/windows"
+cp "$W/iniciar.mjs" "$W/internet.mjs" "$W/configurar-internet.mjs" "$W/Iniciar servidor Nexo.bat" "$W/Configurar acesso pela internet.bat" "$STAGE/server/"
 (cd "$STAGE/server" && npm ci --omit=dev --os=win32 --cpu=x64 --silent && rm -f package-lock.json)
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/nexo-installer"; mkdir -p "$CACHE"
 [ -f "$CACHE/node-$NODE_VER.exe" ] || {

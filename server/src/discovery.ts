@@ -14,7 +14,10 @@ export function startDiscovery(httpPort: number, port = Number(process.env.DISCO
   // `id` estável por servidor: todos os apps da rede escolhem o MESMO servidor (menor id),
   // mesmo que alguém abra um segundo servidor por engano.
   const id = process.env.NEXO_INSTANCE_ID || randomUUID();
-  const reply = Buffer.from(JSON.stringify({ nexo: 1, port: httpPort, name: os.hostname(), id }));
+  // `publicUrl`: endereço do mesmo servidor pela internet (PC servidor com DuckDNS/HTTPS),
+  // para os apps usarem quando estiverem fora desta rede.
+  const publicUrl = process.env.NEXO_PUBLIC_URL || undefined;
+  const reply = Buffer.from(JSON.stringify({ nexo: 1, port: httpPort, name: os.hostname(), id, publicUrl }));
   sock.on('message', (msg, rinfo) => {
     if (msg.length > 64 || !msg.toString('utf8').startsWith(DISCOVERY_PROBE)) return;
     sock.send(reply, rinfo.port, rinfo.address);

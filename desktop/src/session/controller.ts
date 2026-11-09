@@ -3,6 +3,7 @@ import { Api, ApiError } from '../net/api';
 import { Signaling, wsUrlFrom } from '../net/signaling';
 import { DEFAULT_SERVER_URL, isPublicServer } from '../net/protocol';
 import type { ClientMessage, Mode, ServerMessage, SessionStartedPayload, Settings } from '../net/protocol';
+import type { DiscoveredServer } from '../platform/types';
 import { platform } from '../platform';
 import { t } from '../i18n';
 import { digitsOnly, uid } from '../lib/format';
@@ -28,12 +29,12 @@ class Controller {
 
   constructor() {
     this.api = new Api(
-      () => getApp().settings.serverUrl,
+      () => this.serverUrl(),
       (m) => platform.sign(m),
     );
     this.sig = new Signaling(async () => {
       const token = await this.api.deviceToken();
-      return wsUrlFrom(getApp().settings.serverUrl, token);
+      return wsUrlFrom(this.serverUrl(), token);
     });
     this.host = new HostController(platform, (m) => this.send(m));
     this.sig.on('state', (state) => {
@@ -136,16 +137,53 @@ class Controller {
     void this.bootNetwork(settings.serverUrl);
   }
 
-  private async bootNetwork(serverUrl: string) {
-    // Rede local: usa o servidor Nexo canônico da rede, se houver (sem configurar nada).
-    if (platform.canHost && serverUrl.startsWith('http://')) {
+  private async bootNetwork(_serverUrl: string) {
+    if (platform.canHost) {
       setApp({ conn: 'connecting' });
       this.lastDiscovery = Date.now();
-      const found = await this.discover();
-      platform.log?.('info', `descoberta no início: ${JSON.stringify(found)}`);
-      if (found[0] && found[0] !== getApp().settings.serverUrl) await persistSettings({ serverUrl: found[0] });
+      await this.resolveServer(await this.discover());
     }
     void this.registerLoop();
+  }
+
+  /**
+   * Caminho efetivo até o servidor (não salvo): o endereço da rede local quando o servidor
+   * configurado (público) está nesta mesma rede — mais rápido e não depende do roteador.
+   */
+  private effectiveUrl: string | null = null;
+
+  serverUrl(): string {
+    return this.effectiveUrl ?? getApp().settings.serverUrl;
+  }
+
+  /**
+   * Escolhe o servidor a partir da descoberta na rede local. Devolve true se mudou algo.
+   *  - Servidor da rede anuncia o endereço público configurado -> usa a rede local (efetivo).
+   *  - Modo rede local (http://) -> adota o servidor canônico da rede e, se ele tiver endereço
+   *    público (PC servidor com acesso pela internet), salva o público para quando sair da rede.
+   *  - Nada encontrado -> volta ao endereço configurado.
+   */
+  private async resolveServer(found: DiscoveredServer[]): Promise<boolean> {
+    platform.log?.('info', `descoberta: ${JSON.stringify(found)}`);
+    const before = this.serverUrl();
+    const configured = getApp().settings.serverUrl;
+    const same = found.find((s) => s.publicUrl && s.publicUrl === configured);
+    if (same) {
+      this.effectiveUrl = same.url;
+    } else if (!isPublicServer(configured) && found[0]) {
+      const canon = found[0];
+      const save = canon.publicUrl || canon.url;
+      if (save !== configured) {
+        await persistSettings({ serverUrl: save });
+        if (canon.publicUrl) notify('success', t.status.serverFound, canon.publicUrl);
+      }
+      this.effectiveUrl = canon.publicUrl ? canon.url : null;
+    } else {
+      this.effectiveUrl = null;
+    }
+    const after = this.serverUrl();
+    if (after !== before) platform.log?.('info', `servidor efetivo: ${after}`);
+    return after !== before;
   }
 
   get deviceName(): string {
@@ -169,12 +207,13 @@ class Controller {
     try {
       const r = await this.api.register(identity.publicKey, this.deviceName, this.os, this.version);
       setApp({ deviceId: r.deviceId, serverError: null });
+      platform.log?.('info', `registrado como ID ${r.deviceId} em ${this.serverUrl()}`);
       this.registerBackoff = 2000;
       this.sig.start();
     } catch (e) {
       const unreachable = e instanceof ApiError && e.status === 0;
       const msg = unreachable ? t.status.serverUnreachable : (e as Error).message;
-      platform.log?.('warn', `registro em ${getApp().settings.serverUrl} falhou: ${String(e)}`);
+      platform.log?.('warn', `registro em ${this.serverUrl()} falhou: ${String(e)}`);
       setApp({ conn: 'offline', serverError: msg });
       // Servidor local/LAN fora do ar: procura um servidor Nexo na rede e passa a usá-lo sozinho.
       if (unreachable && (await this.autoDiscover())) return;
@@ -185,24 +224,23 @@ class Controller {
 
   private lastDiscovery = 0;
 
-  /** Procura servidores na rede local. Só troca automaticamente se o atual for http:// (LAN/teste). */
+  /** Servidor inalcançável: procura de novo na rede (troca de rede, servidor mudou de IP...). */
   private async autoDiscover(): Promise<boolean> {
-    const current = getApp().settings.serverUrl;
-    if (!platform.canHost || !current.startsWith('http://')) return false;
+    if (!platform.canHost) return false;
     if (Date.now() - this.lastDiscovery < 8000) return false;
     this.lastDiscovery = Date.now();
-    const found = await this.discover();
-    const next = found[0];
-    if (!next || next === current) return false;
-    notify('success', t.status.serverFound, next);
-    await this.updateSettings({ serverUrl: next });
-    return true;
+    const changed = await this.resolveServer(await this.discover());
+    if (changed) {
+      this.api.resetAuth();
+      this.sig.stop();
+    }
+    return changed;
   }
 
-  async discover(): Promise<string[]> {
+  async discover(): Promise<DiscoveredServer[]> {
     try {
       // Tempo-limite de segurança: a procura nunca pode travar o app.
-      const timeout = new Promise<string[]>((r) => setTimeout(() => r([]), 4000));
+      const timeout = new Promise<DiscoveredServer[]>((r) => setTimeout(() => r([]), 4000));
       return await Promise.race([platform.discoverServers(1500), timeout]);
     } catch (e) {
       platform.log?.('warn', `descoberta falhou: ${String(e)}`);
@@ -223,6 +261,7 @@ class Controller {
     if (patch.theme && patch.theme !== prev.theme) applyTheme(patch.theme);
     await persistSettings(patch);
     if (patch.serverUrl !== undefined && patch.serverUrl !== prev.serverUrl) {
+      this.effectiveUrl = null;
       setApp({ deviceId: null });
       this.retry();
     } else if (patch.deviceName !== undefined && patch.deviceName !== prev.deviceName) {

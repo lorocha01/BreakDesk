@@ -5,6 +5,14 @@ export interface Identity {
   fingerprint: string;
 }
 
+/** Servidor encontrado na rede local (ordem canônica: todos os apps escolhem o primeiro). */
+export interface DiscoveredServer {
+  url: string;
+  id: string;
+  /** Endereço do mesmo servidor pela internet, se o PC servidor tiver acesso externo. */
+  publicUrl?: string;
+}
+
 export interface DeviceInfo {
   hostname: string;
   os: string;
@@ -59,7 +67,7 @@ export interface Platform {
   verify(publicKey: string, message: string, signature: string): Promise<boolean>;
   deviceInfo(): Promise<DeviceInfo>;
   /** Procura servidores Nexo na rede local (apenas desktop; web devolve []). */
-  discoverServers(timeoutMs?: number): Promise<string[]>;
+  discoverServers(timeoutMs?: number): Promise<DiscoveredServer[]>;
   /** Grava no log do app (desktop: %APPDATA%\\br.com.nexo.remote\\nexo.log). */
   log?(level: 'info' | 'warn' | 'error', message: string): void;
   loadSettings(): Promise<Settings>;
