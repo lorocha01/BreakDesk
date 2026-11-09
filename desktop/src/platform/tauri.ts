@@ -42,6 +42,7 @@ export const tauriPlatform: Platform = {
   verify: (publicKey, message, signature) => invoke<boolean>('identity_verify', { publicKey, message, signature }),
   deviceInfo: () => invoke<DeviceInfo>('device_info'),
   discoverServers: (timeoutMs?: number) => invoke<string[]>('discover_servers', { timeoutMs }),
+  log: (level: string, message: string) => void invoke('app_log', { level, message }).catch(() => {}),
   async loadSettings() {
     const s = await invoke<Partial<Settings>>('settings_get');
     const base = defaultSettings();

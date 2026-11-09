@@ -192,6 +192,30 @@ fn device_info() -> serde_json::Value {
     json!({"hostname": nexo_core::hostname(), "os": nexo_core::os_name(), "appVersion": nexo_core::APP_VERSION})
 }
 
+/// Grava uma linha no log do app (<app config>/nexo.log), com rotação simples em 1 MiB.
+#[tauri::command]
+fn app_log(app: AppHandle, level: String, message: String) {
+    write_log(&app, &level, &message);
+}
+
+fn write_log(app: &AppHandle, level: &str, message: &str) {
+    use std::io::Write;
+    let Ok(dir) = app.path().app_config_dir() else { return };
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join("nexo.log");
+    if std::fs::metadata(&path).map(|m| m.len() > 1 << 20).unwrap_or(false) {
+        let _ = std::fs::rename(&path, dir.join("nexo.old.log"));
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let msg: String = message.chars().take(2000).collect();
+        let _ = writeln!(f, "{ts} [{level}] {msg}");
+    }
+}
+
 /// Procura servidores Nexo na rede local: broadcast UDP "NEXO_DISCOVER_V1" na porta 41234
 /// (limitado + direcionado por interface + loopback) e coleta as respostas unicast.
 #[tauri::command]
@@ -237,8 +261,14 @@ fn discover_blocking(timeout: std::time::Duration) -> anyhow::Result<Vec<String>
         if left.is_zero() {
             break;
         }
-        sock.set_read_timeout(Some(left))?;
-        let Ok((n, from)) = sock.recv_from(&mut buf) else { break };
+        sock.set_read_timeout(Some(left.max(std::time::Duration::from_millis(5))))?;
+        let (n, from) = match sock.recv_from(&mut buf) {
+            Ok(r) => r,
+            // No Windows, a procura enviada a uma porta fechada (ex.: 127.0.0.1 sem servidor)
+            // volta como WSAECONNRESET; isso não pode encerrar a escuta das respostas da rede.
+            Err(e) if matches!(e.kind(), std::io::ErrorKind::ConnectionReset | std::io::ErrorKind::ConnectionRefused | std::io::ErrorKind::Interrupted) => continue,
+            Err(_) => break,
+        };
         let Ok(v) = serde_json::from_slice::<serde_json::Value>(&buf[..n]) else { continue };
         if v.get("nexo").and_then(|x| x.as_u64()) != Some(1) {
             continue;
@@ -709,6 +739,7 @@ pub fn run() {
             dl_close,
             dl_abort,
             discover_servers,
+            app_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Nexo");

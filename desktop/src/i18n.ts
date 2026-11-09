@@ -19,7 +19,7 @@ export const t = {
     latency: (ms: number) => `${ms} ms`,
     serverUnreachable: 'Servidor indisponível',
     serverFound: 'Servidor Nexo encontrado na rede',
-    serverUnreachableHint: 'Procurando o servidor Nexo na rede… Abra "Iniciar servidor Nexo.bat" em um computador da rede ou informe o endereço em Configurações → Geral.',
+    serverUnreachableHint: 'Procurando o servidor Nexo na rede… Abra o "Servidor Nexo" (atalho na Área de Trabalho) no computador escolhido como servidor, ou informe o endereço em Configurações → Geral.',
   },
   home: {
     greeting: 'Bem-vindo ao Nexo',

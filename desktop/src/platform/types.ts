@@ -60,6 +60,8 @@ export interface Platform {
   deviceInfo(): Promise<DeviceInfo>;
   /** Procura servidores Nexo na rede local (apenas desktop; web devolve []). */
   discoverServers(timeoutMs?: number): Promise<string[]>;
+  /** Grava no log do app (desktop: %APPDATA%\\br.com.nexo.remote\\nexo.log). */
+  log?(level: 'info' | 'warn' | 'error', message: string): void;
   loadSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<void>;
   setUnattendedPassword(password: string): Promise<void>;

@@ -10,6 +10,11 @@ import { App } from './App';
 import { Indicator } from './screens/Indicator';
 import { isTauri } from './platform';
 import { applyTheme } from './theme';
+import { platform } from './platform';
+
+// Erros não tratados vão para o log do app (diagnóstico em computadores reais).
+window.addEventListener('error', (e) => platform.log?.('error', `js: ${e.message} @ ${e.filename}:${e.lineno}`));
+window.addEventListener('unhandledrejection', (e) => platform.log?.('error', `promise: ${String(e.reason)}`));
 
 function isIndicatorWindow(): boolean {
   if (location.hash.startsWith('#/indicator')) return true;

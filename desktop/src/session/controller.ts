@@ -61,7 +61,10 @@ class Controller {
   }
 
   boot(): Promise<void> {
-    this.booting ??= this.doBoot();
+    this.booting ??= this.doBoot().catch((e) => {
+      platform.log?.('error', `boot: ${String(e)}`);
+      setApp({ booted: true, serverError: `Erro ao iniciar: ${String(e)}` });
+    });
     return this.booting;
   }
 
@@ -86,14 +89,25 @@ class Controller {
       this.os = 'Desconhecido';
       this.appVersion = __APP_VERSION__;
     }
-    if (platform.canHost) await this.host.init();
+    try {
+      if (platform.canHost) await this.host.init();
+    } catch (e) {
+      platform.log?.('error', `host.init: ${String(e)}`);
+    }
+    // A interface aparece imediatamente; a procura do servidor roda em segundo plano.
+    setApp({ booted: true });
+    void this.bootNetwork(settings.serverUrl);
+  }
+
+  private async bootNetwork(serverUrl: string) {
     // Rede local: usa o servidor Nexo canônico da rede, se houver (sem configurar nada).
-    if (platform.canHost && settings.serverUrl.startsWith('http://')) {
+    if (platform.canHost && serverUrl.startsWith('http://')) {
+      setApp({ conn: 'connecting' });
       this.lastDiscovery = Date.now();
       const found = await this.discover();
-      if (found[0] && found[0] !== settings.serverUrl) await persistSettings({ serverUrl: found[0] });
+      platform.log?.('info', `descoberta no início: ${JSON.stringify(found)}`);
+      if (found[0] && found[0] !== getApp().settings.serverUrl) await persistSettings({ serverUrl: found[0] });
     }
-    setApp({ booted: true });
     void this.registerLoop();
   }
 
@@ -123,6 +137,7 @@ class Controller {
     } catch (e) {
       const unreachable = e instanceof ApiError && e.status === 0;
       const msg = unreachable ? t.status.serverUnreachable : (e as Error).message;
+      platform.log?.('warn', `registro em ${getApp().settings.serverUrl} falhou: ${String(e)}`);
       setApp({ conn: 'offline', serverError: msg });
       // Servidor local/LAN fora do ar: procura um servidor Nexo na rede e passa a usá-lo sozinho.
       if (unreachable && (await this.autoDiscover())) return;
@@ -149,9 +164,11 @@ class Controller {
 
   async discover(): Promise<string[]> {
     try {
-      return await platform.discoverServers(1500);
+      // Tempo-limite de segurança: a procura nunca pode travar o app.
+      const timeout = new Promise<string[]>((r) => setTimeout(() => r([]), 4000));
+      return await Promise.race([platform.discoverServers(1500), timeout]);
     } catch (e) {
-      console.warn('[discovery]', e);
+      platform.log?.('warn', `descoberta falhou: ${String(e)}`);
       return [];
     }
   }
