@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="nx-bg" x1="6" y1="4" x2="60" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6A5CFF"/>
+      <stop offset="0.55" stop-color="#4C55F0"/>
+      <stop offset="1" stop-color="#12B5A5"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#nx-bg)"/>
+  <path d="M19 45C31 45 33 19 45 19" stroke="#fff" stroke-opacity=".42" stroke-width="5" stroke-linecap="round"/>
+  <path d="M19 45C19 29 45 35 45 19" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="19" cy="45" r="6.5" fill="#fff"/>
+  <circle cx="45" cy="19" r="6.5" fill="#fff"/>
+  <circle cx="19" cy="45" r="2.6" fill="#4C55F0"/>
+  <circle cx="45" cy="19" r="2.6" fill="#12B5A5"/>
+</svg>

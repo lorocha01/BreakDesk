@@ -1,0 +1,9 @@
+/target/
+node_modules/
+desktop/dist/
+desktop/src-tauri/gen/
+server/dist/
+release/
+*.log
+.env
+nexo-hostd-data/

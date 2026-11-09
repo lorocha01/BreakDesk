@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = ["core", "desktop/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Proprietary"
+authors = ["Nexo"]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+strip = true
+
+[profile.dev]
+# Keep debug builds small (full debuginfo for webrtc/tauri is many GB).
+debug = "line-tables-only"
+[profile.dev.package."*"]
+debug = false
+
+# Pixel conversion and video encoding must be fast even in debug builds.
+[profile.dev.package.nexo-core]
+opt-level = 2
+[profile.dev.package.openh264-sys2]
+opt-level = 3
+[profile.dev.package.openh264]
+opt-level = 3
+[profile.dev.package.xcap]
+opt-level = 3
+[profile.dev.package.image]
+opt-level = 3

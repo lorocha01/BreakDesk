@@ -1,0 +1,65 @@
+[package]
+name = "nexo-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexo remote desktop core: identity, capture, H.264 encoding, input injection and WebRTC host sessions"
+
+[lib]
+name = "nexo_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nexo-hostd"
+path = "src/bin/nexo-hostd.rs"
+required-features = ["hostd"]
+
+[features]
+default = []
+hostd = ["dep:reqwest", "dep:tokio-tungstenite", "dep:clap", "dep:futures-util", "dep:tracing-subscriber"]
+
+[dependencies]
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util"] }
+bytes = "1"
+tracing = "0.1"
+parking_lot = "0.12"
+base64 = "0.22"
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.8"
+ed25519-dalek = { version = "=2.2.0", features = ["rand_core"] }
+argon2 = { version = "=0.5.3", features = ["std"] }
+dirs = "6"
+webrtc = "=0.17.2"
+xcap = "=0.9.8"
+openh264 = "=0.9.9"
+enigo = "=0.6.1"
+
+# headless agent only
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"], optional = true }
+clap = { version = "4", features = ["derive", "env"], optional = true }
+futures-util = { version = "0.3", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+x11rb = "0.13"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_Storage_FileSystem",
+] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[[example]]
+name = "e2e_viewer"
+required-features = ["hostd"]

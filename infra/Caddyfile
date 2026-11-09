@@ -1,0 +1,22 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$NEXO_DOMAIN} {
+	encode zstd gzip
+
+	@nexo path /api/* /ws /healthz
+	handle @nexo {
+		# WebSocket (/ws) é encaminhado automaticamente pelo reverse_proxy.
+		reverse_proxy server:8080
+	}
+
+	handle {
+		respond "Nexo" 200
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}

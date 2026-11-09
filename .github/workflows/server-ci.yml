@@ -1,0 +1,52 @@
+name: server-ci
+
+on:
+  push:
+    paths: ["server/**", "infra/**", ".github/workflows/server-ci.yml"]
+  pull_request:
+    paths: ["server/**", "infra/**", ".github/workflows/server-ci.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nexo
+          POSTGRES_PASSWORD: nexo
+          POSTGRES_DB: nexo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nexo -d nexo"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://nexo:nexo@localhost:5432/nexo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build da imagem do servidor
+        run: docker build -t nexo-server:ci server
+      - name: Validar docker-compose
+        working-directory: infra
+        run: |
+          sed 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=x/; s/^JWT_SECRET=$/JWT_SECRET=y/; s/^TURN_SECRET=$/TURN_SECRET=z/' .env.example > .env
+          docker compose config -q

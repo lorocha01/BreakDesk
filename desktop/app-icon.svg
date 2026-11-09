@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="96" y1="64" x2="960" y2="992" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6A5CFF"/>
+      <stop offset="0.55" stop-color="#4C55F0"/>
+      <stop offset="1" stop-color="#12B5A5"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(300 220) rotate(50) scale(760)">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="272" fill="url(#bg)"/>
+  <rect x="32" y="32" width="960" height="960" rx="272" fill="url(#shine)"/>
+  <path d="M304 720C496 720 528 304 720 304" stroke="#fff" stroke-opacity=".42" stroke-width="80" stroke-linecap="round"/>
+  <path d="M304 720C304 464 720 560 720 304" stroke="#fff" stroke-width="88" stroke-linecap="round"/>
+  <circle cx="304" cy="720" r="104" fill="#fff"/>
+  <circle cx="720" cy="304" r="104" fill="#fff"/>
+  <circle cx="304" cy="720" r="42" fill="#4C55F0"/>
+  <circle cx="720" cy="304" r="42" fill="#12B5A5"/>
+</svg>

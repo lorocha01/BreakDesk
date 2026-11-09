@@ -1,0 +1,92 @@
+# Nexo — infraestrutura de produção (sinalização + PostgreSQL + TURN + TLS)
+# Uso: cp .env.example .env && editar && docker compose up -d --build
+name: nexo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nexo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: nexo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexo -d nexo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  server:
+    build: ../server
+    image: nexo-server:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_URL: postgres://nexo:${POSTGRES_PASSWORD}@postgres:5432/nexo
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env}
+      TURN_SECRET: ${TURN_SECRET:?defina TURN_SECRET no .env}
+      TURN_URLS: turn:${NEXO_DOMAIN}:3478?transport=udp,turn:${NEXO_DOMAIN}:3478?transport=tcp,turns:${NEXO_DOMAIN}:5349?transport=tcp
+      STUN_URLS: stun:${NEXO_DOMAIN}:3478
+      CORS_ORIGINS: ${CORS_ORIGINS:-tauri://localhost,http://tauri.localhost,https://tauri.localhost}
+      TRUST_PROXY: "true"
+      MIGRATE_ON_START: "true"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    expose: ["8080"]
+    networks: [backend, edge]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [server]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      NEXO_DOMAIN: ${NEXO_DOMAIN:?defina NEXO_DOMAIN no .env}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+
+  # O TURN usa a rede do host: evita o NAT do Docker na faixa de portas de relay.
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    network_mode: host
+    user: root # para ler os certificados do Caddy; o processo cai para nobody (proc-user)
+    depends_on: [caddy]
+    environment:
+      TURN_SECRET: ${TURN_SECRET}
+      NEXO_DOMAIN: ${NEXO_DOMAIN}
+      TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP:-}
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - caddy_data:/caddy:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        CERT_DIR=/caddy/caddy/certificates/acme-v02.api.letsencrypt.org-directory/$$NEXO_DOMAIN;
+        exec turnserver -c /etc/coturn/turnserver.conf
+        --static-auth-secret="$$TURN_SECRET"
+        --realm="$$NEXO_DOMAIN" --server-name="$$NEXO_DOMAIN"
+        --cert="$$CERT_DIR/$$NEXO_DOMAIN.crt" --pkey="$$CERT_DIR/$$NEXO_DOMAIN.key"
+        $${TURN_EXTERNAL_IP:+--external-ip=$$TURN_EXTERNAL_IP}
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  backend:
+    internal: true
+  edge:
