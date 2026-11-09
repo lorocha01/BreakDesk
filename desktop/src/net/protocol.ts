@@ -213,6 +213,11 @@ export interface LocalAuditRow {
 export const DEFAULT_SERVER_URL: string =
   (import.meta.env.VITE_NEXO_SERVER as string | undefined) || 'http://localhost:8080';
 
+/** Servidor público (rendezvous na internet, com TLS) — em oposição a um servidor de rede local. */
+export function isPublicServer(url: string): boolean {
+  return url.startsWith('https://');
+}
+
 export function defaultSettings(): Settings {
   return {
     serverUrl: DEFAULT_SERVER_URL,

@@ -1,3 +1,4 @@
+import { DEFAULT_SERVER_URL, isPublicServer } from '../net/protocol';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Cpu,
@@ -200,6 +201,19 @@ function GeneralSection({ settings, update }: { settings: Settings; update: (p: 
           >
             {t.settings.apply}
           </button>
+          {isPublicServer(DEFAULT_SERVER_URL) && settings.serverUrl !== DEFAULT_SERVER_URL && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setServer(DEFAULT_SERVER_URL);
+                update({ serverUrl: DEFAULT_SERVER_URL });
+                toast('success', t.settings.saved, DEFAULT_SERVER_URL);
+              }}
+              data-testid="setting-server-public"
+            >
+              {t.settings.usePublicServer}
+            </button>
+          )}
           {platform.canHost && (
             <button
               className="btn btn-secondary"

@@ -1,6 +1,7 @@
 // App controller: boot, device registration/auth, signaling dispatch, outgoing sessions.
 import { Api, ApiError } from '../net/api';
 import { Signaling, wsUrlFrom } from '../net/signaling';
+import { DEFAULT_SERVER_URL, isPublicServer } from '../net/protocol';
 import type { ClientMessage, Mode, ServerMessage, SessionStartedPayload, Settings } from '../net/protocol';
 import { platform } from '../platform';
 import { t } from '../i18n';
@@ -82,7 +83,30 @@ class Controller {
   }
 
   private async doBoot() {
-    const settings = await platform.loadSettings();
+    let settings = await platform.loadSettings();
+    // Instalador gerado com servidor público (VITE_NEXO_SERVER=https://...): passa a usá-lo,
+    // inclusive em instalações antigas que estavam em modo rede local (http://). Só uma vez
+    // por endereço, para respeitar quem escolher outro servidor depois.
+    if (isPublicServer(DEFAULT_SERVER_URL)) {
+      const mark = 'nexo.publicServerApplied';
+      let applied: string | null = null;
+      try {
+        applied = localStorage.getItem(mark);
+      } catch {
+        /* sem storage */
+      }
+      if (applied !== DEFAULT_SERVER_URL) {
+        if (settings.serverUrl !== DEFAULT_SERVER_URL && !isPublicServer(settings.serverUrl)) {
+          settings = await persistSettings({ ...settings, serverUrl: DEFAULT_SERVER_URL });
+          platform.log?.('info', `servidor público aplicado: ${DEFAULT_SERVER_URL}`);
+        }
+        try {
+          localStorage.setItem(mark, DEFAULT_SERVER_URL);
+        } catch {
+          /* sem storage */
+        }
+      }
+    }
     setApp({ settings });
     applyTheme(settings.theme);
     try {

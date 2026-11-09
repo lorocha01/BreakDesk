@@ -50,7 +50,6 @@ services:
       - "443:443"
     environment:
       NEXO_DOMAIN: ${NEXO_DOMAIN:?defina NEXO_DOMAIN no .env}
-      ACME_EMAIL: ${ACME_EMAIL:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

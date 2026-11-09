@@ -9,7 +9,34 @@ Componentes (todos em `docker-compose.yml`):
 | `postgres` | Usuários, dispositivos, sessões, auditoria | rede interna (sem porta pública) |
 | `coturn` | STUN/TURN para NAT traversal e relay quando P2P não é possível | 3478/udp+tcp, 5349/tcp, 49160-49200/udp |
 
-## Implantação em uma VPS
+## Instalação rápida (um comando)
+
+Numa VPS nova (Ubuntu 22.04/24.04 ou Debian 12, 1 vCPU / 1 GB já basta), com o projeto copiado
+para ela:
+
+```bash
+sudo infra/instalar-servidor.sh
+```
+
+- **Sem domínio:** o script usa `<ip-da-vps>.sslip.io` (ex.: `203-0-113-10.sslip.io`), que já
+  recebe certificado HTTPS válido do Let's Encrypt. Não precisa comprar domínio.
+- **Com domínio próprio:** aponte um registro **A** para o IP da VPS e rode
+  `sudo infra/instalar-servidor.sh remoto.suaempresa.com.br`.
+
+O script instala o Docker (se faltar), gera todas as senhas, detecta NAT da nuvem para o
+TURN, libera as portas no `ufw`, sobe tudo e mostra o endereço final. Libere também as
+portas no **painel do provedor**: TCP 80, 443, 3478, 5349 e UDP 3478, 49160–49200.
+
+Depois, gere o instalador do app já apontando para esse servidor:
+
+```bash
+NEXO_SERVER=https://SEU-ENDERECO installer/windows/build.sh
+```
+
+Os apps passam a usar o servidor público automaticamente, inclusive os que estavam em
+modo rede local.
+
+## Implantação manual em uma VPS
 
 Requisitos: Linux com Docker + Compose v2, um domínio (ex.: `nexo.suaempresa.com.br`)
 com registro **A/AAAA** apontando para o IP público da VPS.

@@ -3,6 +3,8 @@
 # Requisitos: rustup target x86_64-pc-windows-gnu, mingw-w64, nsis (makensis), node 22, curl, unzip.
 #   installer/windows/build.sh            # compila tudo e gera o instalador em release/
 #   SKIP_APP_BUILD=1 installer/windows/build.sh   # reaproveita o Nexo.exe já compilado
+#   NEXO_SERVER=https://remoto.empresa.com.br installer/windows/build.sh
+#                                   # app já sai usando o servidor público (rendezvous) da internet
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HERE="$ROOT/installer/windows"
@@ -15,7 +17,8 @@ rm -rf "$STAGE" && mkdir -p "$STAGE/app" "$STAGE/server"
 
 echo "[1/4] Aplicativo"
 if [ -z "${SKIP_APP_BUILD:-}" ]; then
-  (cd "$ROOT/desktop" && npm run -s build)
+  (cd "$ROOT/desktop" && VITE_NEXO_SERVER="${NEXO_SERVER:-}" npm run -s build)
+  echo "    servidor padrão do app: ${NEXO_SERVER:-rede local (descoberta automática)}"
   (cd "$ROOT" && CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc \
     cargo build --release --target x86_64-pc-windows-gnu -p nexo-desktop --features tauri/custom-protocol)
 fi

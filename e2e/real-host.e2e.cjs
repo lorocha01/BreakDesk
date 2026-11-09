@@ -29,7 +29,7 @@ async function waitFor(fn, ms, step = 200) {
 
 async function runScenario(browser, { name, relayOnly }) {
   log(`=== cenário: ${name}`);
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true, ignoreHTTPSErrors: !!process.env.IGNORE_HTTPS });
   await ctx.addInitScript(({ server, relayOnly }) => {
     if (!localStorage.getItem('nexo.web.settings.v1')) localStorage.setItem('nexo.web.settings.v1', JSON.stringify({ serverUrl: server }));
     if (relayOnly) {
@@ -164,7 +164,7 @@ async function runScenario(browser, { name, relayOnly }) {
 (async () => {
   const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream'] });
   try {
-    await runScenario(browser, { name: 'p2p', relayOnly: false });
+    if (!process.env.ONLY_RELAY) await runScenario(browser, { name: 'p2p', relayOnly: false });
     await runScenario(browser, { name: 'relay', relayOnly: true });
   } catch (e) {
     failures++;

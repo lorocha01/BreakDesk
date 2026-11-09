@@ -1,3 +1,4 @@
+import { isPublicServer } from '../net/protocol';
 import { History as HistoryIcon, House, Moon, Settings as SettingsIcon, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { t } from '../i18n';
@@ -82,7 +83,7 @@ export function Shell() {
               <strong>{t.status.serverUnreachable}</strong>
               <span>
                 {serverError !== t.status.serverUnreachable ? `${serverError} · ` : ''}
-                {t.status.serverUnreachableHint}
+                {(isPublicServer(useApp.getState().settings.serverUrl) ? t.status.serverUnreachablePublicHint : t.status.serverUnreachableHint)}
               </span>
             </div>
             <button className="btn btn-secondary btn-sm" onClick={() => controller.retry()} data-testid="retry-server">

@@ -1,7 +1,4 @@
-{
-	email {$ACME_EMAIL}
-}
-
+# E-mail do Let's Encrypt é opcional; sem ele o Caddy emite o certificado do mesmo jeito.
 {$NEXO_DOMAIN} {
 	encode zstd gzip
 

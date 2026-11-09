@@ -19,6 +19,7 @@ export const t = {
     latency: (ms: number) => `${ms} ms`,
     serverUnreachable: 'Servidor indisponível',
     serverFound: 'Servidor Nexo encontrado na rede',
+    serverUnreachablePublicHint: 'Não foi possível falar com o servidor público. Verifique a conexão com a internet; o Nexo tenta de novo sozinho.',
     serverUnreachableHint: 'Procurando o servidor Nexo na rede… Abra o "Servidor Nexo" (atalho na Área de Trabalho) no computador escolhido como servidor, ou informe o endereço em Configurações → Geral.',
   },
   home: {
@@ -271,8 +272,9 @@ export const t = {
     deviceName: 'Nome deste computador',
     deviceNameHint: 'Exibido para quem se conecta a você.',
     serverUrl: 'Servidor',
-    serverUrlHint: 'Endereço do servidor de sinalização Nexo.',
+    serverUrlHint: 'Servidor que entrega os IDs e coloca os computadores em contato (rendezvous). Use o servidor público para acessar pela internet, ou um servidor da sua rede local.',
     discover: 'Procurar na rede',
+    usePublicServer: 'Usar servidor público',
     discovering: 'Procurando…',
     discoverNone: 'Nenhum servidor Nexo encontrado nesta rede. Verifique se o servidor está aberto e liberado no Firewall.',
     apply: 'Aplicar',

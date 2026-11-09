@@ -1,3 +1,4 @@
+import { isPublicServer } from '../net/protocol';
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, History as HistoryIcon, RefreshCw, ScrollText, WifiOff } from 'lucide-react';
 import { endReasonLabel, t } from '../i18n';
@@ -54,7 +55,7 @@ export function HistoryScreen() {
       </div>
       <div className="card table-card">
         {error ? (
-          <EmptyState icon={<WifiOff />} title={error} hint={conn !== 'online' ? t.status.serverUnreachableHint : undefined}>
+          <EmptyState icon={<WifiOff />} title={error} hint={conn !== 'online' ? (isPublicServer(useApp.getState().settings.serverUrl) ? t.status.serverUnreachablePublicHint : t.status.serverUnreachableHint) : undefined}>
             <button className="btn btn-secondary btn-sm" onClick={() => void load()} style={{ marginTop: 8 }}>
               {t.status.retry}
             </button>
