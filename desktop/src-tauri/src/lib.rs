@@ -229,7 +229,8 @@ fn discover_blocking(timeout: std::time::Duration) -> anyhow::Result<Vec<String>
         let _ = sock.send_to(probe, SocketAddrV4::new(*t, PORT));
     }
     let deadline = std::time::Instant::now() + timeout;
-    let mut found: Vec<String> = Vec::new();
+    // (id do servidor, url, é_localhost)
+    let mut found: Vec<(String, String, bool)> = Vec::new();
     let mut buf = [0u8; 512];
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());
@@ -243,15 +244,27 @@ fn discover_blocking(timeout: std::time::Duration) -> anyhow::Result<Vec<String>
             continue;
         }
         let Some(port) = v.get("port").and_then(|x| x.as_u64()) else { continue };
-        let host = if from.ip().is_loopback() { "localhost".to_string() } else { from.ip().to_string() };
+        let id = v.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
+        let local = from.ip().is_loopback();
+        let host = if local { "localhost".to_string() } else { from.ip().to_string() };
         let url = format!("http://{host}:{port}");
-        if !found.contains(&url) {
-            found.push(url);
+        if !found.iter().any(|f| f.1 == url) {
+            found.push((id, url, local));
         }
     }
-    // Mesmo computador primeiro.
-    found.sort_by_key(|u| !u.starts_with("http://localhost"));
-    Ok(found)
+    // Ordem canônica: menor id primeiro (todos os computadores escolhem o mesmo servidor);
+    // para o mesmo servidor, o endereço localhost vem antes. Um endereço por servidor.
+    found.sort_by(|a, b| a.0.cmp(&b.0).then(b.2.cmp(&a.2)));
+    let mut out: Vec<String> = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+    for (id, url, _) in found {
+        if !id.is_empty() && seen.contains(&id) {
+            continue;
+        }
+        seen.push(id);
+        out.push(url);
+    }
+    Ok(out)
 }
 
 #[tauri::command]

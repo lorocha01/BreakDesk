@@ -68,6 +68,15 @@ Visual Studio Build Tools (C++) e o WebView2 (já incluso no Windows 11).
 
    O workflow `.github/workflows/desktop-build.yml` gera os instaladores automaticamente.
 
+   **Instalador completo (gerado no Linux):** `installer/windows/build.sh` produz
+   `release/Nexo-Setup-<versão>.exe`. O instalador:
+   - instala o app;
+   - opcionalmente instala o servidor da rede local (Node portátil e banco embutido, iniciando com o Windows);
+   - cria as regras do Firewall do Windows, para que nenhum aviso apareça depois;
+   - instala o WebView2 se faltar.
+
+   Na rede local, os apps encontram o servidor sozinhos (descoberta UDP 41234).
+
 4. Agente não supervisionado sem interface (servidores, máquinas sem monitor físico):
 
    ```bash

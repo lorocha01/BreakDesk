@@ -87,6 +87,12 @@ class Controller {
       this.appVersion = __APP_VERSION__;
     }
     if (platform.canHost) await this.host.init();
+    // Rede local: usa o servidor Nexo canônico da rede, se houver (sem configurar nada).
+    if (platform.canHost && settings.serverUrl.startsWith('http://')) {
+      this.lastDiscovery = Date.now();
+      const found = await this.discover();
+      if (found[0] && found[0] !== settings.serverUrl) await persistSettings({ serverUrl: found[0] });
+    }
     setApp({ booted: true });
     void this.registerLoop();
   }
@@ -134,8 +140,8 @@ class Controller {
     if (Date.now() - this.lastDiscovery < 8000) return false;
     this.lastDiscovery = Date.now();
     const found = await this.discover();
-    const next = found.find((u) => u !== current);
-    if (!next || found.includes(current)) return false;
+    const next = found[0];
+    if (!next || next === current) return false;
     notify('success', t.status.serverFound, next);
     await this.updateSettings({ serverUrl: next });
     return true;
