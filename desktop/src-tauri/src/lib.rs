@@ -699,6 +699,13 @@ pub fn run() {
                 downloads: Mutex::new(HashMap::new()),
                 end_item: Mutex::new(None),
             });
+            // As janelas só são criadas DEPOIS de o estado existir: no Windows o WebView2
+            // carrega rápido e chamaria os comandos antes do `.manage()` (corrida na inicialização).
+            for cfg in app.config().app.windows.clone() {
+                if app.get_webview_window(&cfg.label).is_none() {
+                    tauri::WebviewWindowBuilder::from_config(app.handle(), &cfg)?.build()?;
+                }
+            }
             match build_tray(app) {
                 Ok(end) => *app.state::<AppState>().end_item.lock() = Some(end),
                 Err(e) => tracing::warn!("tray unavailable: {e}"),

@@ -52,7 +52,10 @@ async function runScenario(browser, { name, relayOnly }) {
   await page.click('[data-testid=mode-toggle] button:nth-child(2)');
   await page.fill('[data-testid=unattended-password]', 'senha-errada');
   await page.click('[data-testid=connect-button]');
-  await page.waitForSelector('[data-testid=password-input]', { timeout: 30000 });
+  await page.waitForSelector('[data-testid=password-input]', { timeout: 30000 }).catch(async (e) => {
+    await page.screenshot({ path: path.join(OUT, `falha-${name}.png`) });
+    throw e;
+  });
   check(true, 'host Rust recusou senha errada e pediu a senha');
   await page.fill('[data-testid=password-input]', PASSWORD);
   await page.click('[data-testid=auth-submit]');
@@ -119,10 +122,21 @@ async function runScenario(browser, { name, relayOnly }) {
   await page.locator('[data-testid=remote-entry]').first().waitFor({ timeout: 10000 });
   const rootEntry = page.locator('[data-testid=remote-entry][data-name="/"]');
   if (await rootEntry.count()) await rootEntry.dblclick();
-  for (const s of segs) {
-    const e = page.locator(`[data-testid=remote-entry][data-name="${s}"]`);
-    await e.waitFor({ timeout: 10000 });
-    await e.dblclick();
+  // Navega pasta a pasta; repete o duplo clique se a lista ainda estava sendo redesenhada.
+  const steps = [...segs, null];
+  for (let i = 0; i < segs.length; i++) {
+    const cur = page.locator(`[data-testid=remote-entry][data-name="${segs[i]}"]`);
+    const next = steps[i + 1] ?? 'dados.bin';
+    const nextLoc = page.locator(`[data-testid=remote-entry][data-name="${next}"]`);
+    let ok = false;
+    for (let attempt = 0; attempt < 4 && !ok; attempt++) {
+      if (await cur.count()) await cur.first().dblclick().catch(() => {});
+      ok = await nextLoc.first().waitFor({ timeout: 4000 }).then(() => true, () => false);
+    }
+    if (!ok) {
+      await page.screenshot({ path: path.join(OUT, `falha-nav-${name}-${segs[i]}.png`) });
+      throw new Error(`não navegou para ${segs[i]}`);
+    }
   }
   await page.locator('[data-testid=remote-entry][data-name="dados.bin"]').waitFor({ timeout: 10000 });
   const dlP = page.waitForEvent('download', { timeout: 20000 });

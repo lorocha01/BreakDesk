@@ -1,3 +1,4 @@
+import { platform } from '../platform';
 import { Emitter } from '../lib/emitter';
 import type { ClientMessage, ServerMessage } from './protocol';
 
@@ -84,6 +85,7 @@ export class Signaling extends Emitter<Events> {
       url = await this.getUrl();
     } catch (e) {
       console.warn('[signaling] cannot obtain url/token', e);
+      platform.log?.('warn', `ws: sem token/url: ${String(e)}`);
       this.setState('offline');
       this.scheduleRetry();
       return;
@@ -121,6 +123,7 @@ export class Signaling extends Emitter<Events> {
       this.pingTimer = setInterval(() => this.ping(), 10_000);
     };
     ws.onclose = (ev) => {
+      platform.log?.('warn', `ws fechado: code=${ev.code} reason=${ev.reason || '-'}`);
       if (this.ws !== ws) return;
       this.ws = null;
       this.clearPing();

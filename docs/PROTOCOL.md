@@ -147,7 +147,8 @@ Quadros texto = JSON com campo `op`. Quadros binários = cabeçalho 8 bytes
 
 Navegação (viewer → host):
 - `{op:'ls', reqId, path}` (`path:''` = raízes: unidades no Windows, `/` e home em outros) →
-  `{op:'ls_result', reqId, path, parent, entries:[{name, path, isDir, size, modified}]}` ou `{op:'error', reqId, message}`
+  `{op:'ls_result', reqId, path, parent, entries:[{name, path, isDir, size, modified}], more?}` ou `{op:'error', reqId, message}`.
+  Pastas grandes chegam em várias mensagens `ls_result` (até 150 itens cada); todas menos a última têm `more:true`
 
 Envio viewer → host (upload):
 - `{op:'put', id, name, relPath, size, dest?}` → `{op:'put_ok', id}` | `{op:'put_err', id, message}`

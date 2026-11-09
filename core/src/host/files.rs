@@ -103,14 +103,31 @@ impl Inner {
                             .unwrap_or("")
                             .to_string();
                         let res = tokio::task::spawn_blocking(move || files::list_dir(&path)).await;
-                        let reply = match res {
+                        match res {
                             Ok(Ok(l)) => {
-                                json!({"op":"ls_result","reqId":req,"path":l.path,"parent":l.parent,"entries":l.entries})
+                                // Pastas grandes (ex.: System32) não cabem numa mensagem SCTP (~64 KiB):
+                                // envia em partes; `more: true` em todas menos a última.
+                                const CHUNK: usize = 150;
+                                let total = l.entries.len();
+                                let mut start = 0;
+                                loop {
+                                    let end = (start + CHUNK).min(total);
+                                    let more = end < total;
+                                    send_json(
+                                        &dc,
+                                        json!({"op":"ls_result","reqId":req,"path":l.path,"parent":l.parent,
+                                               "entries":&l.entries[start..end],"more":more}),
+                                    )
+                                    .await;
+                                    if !more {
+                                        break;
+                                    }
+                                    start = end;
+                                }
                             }
-                            Ok(Err(e)) => json!({"op":"error","reqId":req,"message":e.to_string()}),
-                            Err(e) => json!({"op":"error","reqId":req,"message":e.to_string()}),
-                        };
-                        send_json(&dc, reply).await;
+                            Ok(Err(e)) => send_json(&dc, json!({"op":"error","reqId":req,"message":e.to_string()})).await,
+                            Err(e) => send_json(&dc, json!({"op":"error","reqId":req,"message":e.to_string()})).await,
+                        }
                     }
                     ("put", Some(id)) => self.put_begin(&dc, id, &v).await,
                     ("put_end", Some(id)) => self.put_end(&dc, id).await,

@@ -66,10 +66,11 @@ if [ "$HOST_KIND" = desktop ]; then
  "receiveDir":"$WORK/received","defaultPermissions":{"input":true,"files":true,"chat":true},"fps":30,"quality":"auto"}
 JSON
   printf '{"unattendedHash":"%s"}' "$HASH" > "$CFG/secrets.json"
+  START_TS="$(psql -At -h 127.0.0.1 -p 5495 -U nexo nexo -c "select now()")"
   HOME="$APPHOME" XDG_CONFIG_HOME="$APPHOME/.config" DISPLAY=$DISP WEBKIT_DISABLE_COMPOSITING_MODE=1 dbus-run-session -- "$ROOT/target/debug/nexo" --minimized > "$WORK/out/desktop.log" 2>&1 &
   PIDS+=($!)
   for _ in $(seq 1 150); do
-    HOST_ID="$(psql -At -h 127.0.0.1 -p 5495 -U nexo nexo -c "select id from devices where name='Desktop-E2E' order by created_at desc limit 1" 2>/dev/null || true)"
+    HOST_ID="$(psql -At -h 127.0.0.1 -p 5495 -U nexo nexo -c "select id from devices where name='Desktop-E2E' and created_at > '$START_TS' order by created_at desc limit 1" 2>/dev/null || true)"
     [ -n "$HOST_ID" ] && break; sleep 0.2
   done
   [ -n "$HOST_ID" ] || { echo "app desktop não registrou"; tail -30 "$WORK/out/desktop.log"; exit 1; }

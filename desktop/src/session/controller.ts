@@ -36,6 +36,7 @@ class Controller {
     });
     this.host = new HostController(platform, (m) => this.send(m));
     this.sig.on('state', (state) => {
+      platform.log?.('info', `sinalização: ${state}`);
       setApp({ conn: state });
       if (state === 'online') {
         setApp({ serverError: null });
@@ -61,10 +62,22 @@ class Controller {
   }
 
   boot(): Promise<void> {
-    this.booting ??= this.doBoot().catch((e) => {
-      platform.log?.('error', `boot: ${String(e)}`);
-      setApp({ booted: true, serverError: `Erro ao iniciar: ${String(e)}` });
-    });
+    this.booting ??= (async () => {
+      // O núcleo nativo pode ainda estar inicializando: tenta de novo por alguns segundos.
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await this.doBoot();
+          return;
+        } catch (e) {
+          platform.log?.('error', `boot (tentativa ${attempt}): ${String(e)}`);
+          if (attempt >= 20) {
+            setApp({ booted: true, serverError: `Erro ao iniciar: ${String(e)}` });
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+    })();
     return this.booting;
   }
 

@@ -24,7 +24,8 @@
         "decorations": true,
         "resizable": true,
         "visible": false,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "create": false
       },
       {
         "label": "indicator",
@@ -41,7 +42,8 @@
         "visible": false,
         "focus": false,
         "shadow": true,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "create": false
       }
     ],
     "security": {
@@ -58,7 +60,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "publisher": "Nexo",
     "category": "Utility",
     "shortDescription": "Acesso remoto seguro",
@@ -73,23 +78,35 @@
       "icons/icon.ico"
     ],
     "windows": {
-      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["PortugueseBR", "English"],
+        "languages": [
+          "PortugueseBR",
+          "English"
+        ],
         "displayLanguageSelector": false,
         "installerIcon": "icons/icon.ico"
       },
       "wix": {
-        "language": ["pt-BR", "en-US"]
+        "language": [
+          "pt-BR",
+          "en-US"
+        ]
       }
     }
   },
   "plugins": {
     "updater": {
       "pubkey": "REPLACE_WITH_TAURI_SIGNER_PUBLIC_KEY",
-      "endpoints": ["https://updates.nexo.example.com/{{target}}/{{arch}}/{{current_version}}"],
-      "windows": { "installMode": "passive" }
+      "endpoints": [
+        "https://updates.nexo.example.com/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

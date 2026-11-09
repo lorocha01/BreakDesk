@@ -96,6 +96,7 @@ export class ViewerFiles {
   private dc: RTCDataChannel | null = null;
   private nextId = 1;
   private reqSeq = 1;
+  private readonly lsPartial = new Map<string, LsResult['entries']>();
   private lsWaiters = new Map<string, Waiter<LsResult>>();
   private putOk = new Map<number, Waiter<void>>();
   private putDone = new Map<number, Waiter<string | undefined>>();
@@ -385,10 +386,18 @@ export class ViewerFiles {
     }
     switch (msg.op) {
       case 'ls_result': {
+        // A listagem pode chegar em partes (`more: true`) para pastas grandes.
+        const partial = this.lsPartial.get(msg.reqId) ?? [];
+        partial.push(...msg.entries);
+        if ((msg as { more?: boolean }).more) {
+          this.lsPartial.set(msg.reqId, partial);
+          break;
+        }
+        this.lsPartial.delete(msg.reqId);
         const w = this.lsWaiters.get(msg.reqId);
         if (w) {
           this.lsWaiters.delete(msg.reqId);
-          w.resolve({ path: msg.path, parent: msg.parent, entries: msg.entries });
+          w.resolve({ path: msg.path, parent: msg.parent, entries: partial });
         }
         break;
       }
